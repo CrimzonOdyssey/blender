@@ -351,11 +351,8 @@ RAS_MeshUser* RAS_MeshObject::AddMeshUser(void *clientobj, RAS_Deformer *deforme
 		 * the mesh slot on a unique list (= display array bucket) and use an unique vertex
 		 * array (=display array). */
 		if (deformer) {
-			RAS_IDisplayArray *array = nullptr;
-			if (deformer->UseVertexArray()) {
-				// The deformer makes use of vertex array, make sure we have our local copy.
-				array = mmat->GetDisplayArray()->GetReplica();
-			}
+			// The deformer makes use of vertex array, make sure we have our local copy.
+			RAS_IDisplayArray *array = mmat->GetDisplayArray()->GetReplica();
 
 			arrayBucket = new RAS_DisplayArrayBucket(mmat->GetBucket(), array, this, mmat, deformer);
 			// Make the deformer the owner of the display array (and bucket).
@@ -386,19 +383,17 @@ void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 		RAS_MeshMaterial *meshmat = *it;
 
 		RAS_IDisplayArray *array = meshmat->GetDisplayArray();
-		if (array) {
-			array->UpdateCache();
-			arrayList.push_back(array);
+		array->UpdateCache();
+		arrayList.push_back(array);
 
-			const std::string materialname = meshmat->GetBucket()->GetPolyMaterial()->GetName();
-			if (array->GetVertexCount() == 0) {
-				CM_Warning("mesh \"" << m_name << "\" has no vertices for material \"" << materialname
-					<< "\". It introduces performance decrease for empty render.");
-			}
-			else if (array->GetIndexCount() == 0) {
-				CM_Warning("mesh \"" << m_name << "\" has no polygons for material \"" << materialname
-					<< "\". It introduces performance decrease for empty render.");
-			}
+		const std::string materialname = meshmat->GetBucket()->GetPolyMaterial()->GetName();
+		if (array->GetVertexCount() == 0) {
+			CM_Warning("mesh \"" << m_name << "\" has no vertices for material \"" << materialname
+				<< "\". It introduces performance decrease for empty render.");
+		}
+		else if (array->GetIndexCount() == 0) {
+			CM_Warning("mesh \"" << m_name << "\" has no polygons for material \"" << materialname
+				<< "\". It introduces performance decrease for empty render.");
 		}
 	}
 
@@ -437,11 +432,6 @@ void RAS_MeshObject::SortPolygons(RAS_IDisplayArray *array, const MT_Transform &
 	// larger buckets, b) and d) cannot be solved easily if we want
 	// to avoid excessive state changes while drawing. e) would
 	// require splitting polygons.
-
-	// If there's no vertex array it means that the we're using modifier deformer.
-	if (!array) {
-		return;
-	}
 
 	unsigned int nvert = 3;
 	unsigned int totpoly = array->GetIndexCount() / nvert;

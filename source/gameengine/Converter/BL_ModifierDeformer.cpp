@@ -182,7 +182,6 @@ bool BL_ModifierDeformer::Update(void)
 			Mesh *oldmesh = (Mesh *)blendobj->data;
 			blendobj->data = m_bmesh;
 			/* execute the modifiers */
-// 			DerivedMesh *dm = mesh_create_derived_view(m_scene, blendobj, CD_MASK_MESH);
 			DerivedMesh *dm = mesh_create_derived_no_virtual(m_scene, blendobj, m_transverts, CD_MASK_MESH);
 			/* restore object data */
 			blendobj->data = oldmesh;
@@ -207,14 +206,6 @@ bool BL_ModifierDeformer::Update(void)
 		}
 		m_lastModifierUpdate = m_gameobj->GetLastFrame();
 		bShapeUpdate = true;
-
-		RAS_MeshUser *meshUser = m_gameobj->GetMeshUser();
-		// In case of conversion of a hidden game object, the mesh user is invalid.
-		if (meshUser) {
-			for (RAS_MeshSlot *slot : meshUser->GetMeshSlots()) {
-// 				slot->m_pDerivedMesh = m_dm;
-			}
-		}
 	}
 
 	return bShapeUpdate;

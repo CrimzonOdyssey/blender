@@ -153,9 +153,7 @@ PyObject *KX_MeshProxy::PyGetVertexArrayLength(PyObject *args, PyObject *kwds)
 
 	if (mmat) {
 		RAS_IDisplayArray *array = mmat->GetDisplayArray();
-		if (array) {
-			length = array->GetVertexCount();
-		}
+		length = array->GetVertexCount();
 	}
 
 	return PyLong_FromLong(length);

@@ -25,8 +25,6 @@
 #include "DNA_material_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_DerivedMesh.h"
-
 #include "GPU_material.h"
 #include "GPU_shader.h"
 #include "GPU_extensions.h"
@@ -177,8 +175,7 @@ void BL_BlenderShader::Update(RAS_MeshSlot *ms, RAS_Rasterizer *rasty)
 	float *obcol = (float *)ms->m_meshUser->GetColor().getValue();
 
 	rasty->GetViewMatrix().getValue((float *)viewmat);
-	float auto_bump_scale = ms->m_pDerivedMesh != 0 ? ms->m_pDerivedMesh->auto_bump_scale : 1.0f;
-	GPU_material_bind_uniforms(m_gpuMat, (float(*)[4])ms->m_meshUser->GetMatrix(), viewmat, obcol, auto_bump_scale, nullptr, nullptr);
+	GPU_material_bind_uniforms(m_gpuMat, (float(*)[4])ms->m_meshUser->GetMatrix(), viewmat, obcol, 1.0f, nullptr, nullptr);
 
 	m_alphaBlend = GPU_material_alpha_blend(m_gpuMat, obcol);
 }

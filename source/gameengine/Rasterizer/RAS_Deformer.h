@@ -77,10 +77,6 @@ public:
 	{
 		return false;
 	}
-	virtual bool UseVertexArray()
-	{
-		return true;
-	}
 	// true when deformer produces varying vertex (shape or armature)
 	bool IsDynamic()
 	{

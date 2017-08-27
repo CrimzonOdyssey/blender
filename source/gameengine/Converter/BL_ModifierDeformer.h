@@ -80,10 +80,6 @@ public:
 	virtual void ProcessReplica();
 	virtual RAS_Deformer *GetReplica();
 	virtual ~BL_ModifierDeformer();
-	virtual bool UseVertexArray()
-	{
-		return true;
-	}
 
 	bool Update();
 	virtual bool Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array);

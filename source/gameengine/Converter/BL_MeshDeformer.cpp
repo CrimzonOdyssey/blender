@@ -123,11 +123,6 @@ void BL_MeshDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
  */
 void BL_MeshDeformer::RecalcNormals()
 {
-	// if we don't use a vertex array we does nothing.
-	if (!UseVertexArray()) {
-		return;
-	}
-
 	/* We don't normalize for performance, not doing it for faces normals
 	 * gives area-weight normals which often look better anyway, and use
 	 * GL_NORMALIZE so we don't have to do per vertex normalization either

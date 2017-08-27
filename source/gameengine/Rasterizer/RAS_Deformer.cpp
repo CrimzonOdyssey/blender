@@ -29,10 +29,7 @@ RAS_Deformer::~RAS_Deformer()
 	}
 
 	for (RAS_IDisplayArray *array : m_displayArrayList) {
-		// The display array can be null for modifier deformers.
-		if (array) {
-			delete array;
-		}
+		delete array;
 	}
 }
 

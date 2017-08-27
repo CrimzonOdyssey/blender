@@ -39,7 +39,6 @@
 class RAS_DisplayArrayBucket;
 class RAS_MeshObject;
 class RAS_MeshUser;
-struct DerivedMesh;
 
 class RAS_MeshSlot
 {
@@ -50,7 +49,6 @@ public:
 	// for rendering
 	RAS_DisplayArrayBucket *m_displayArrayBucket;
 	RAS_MeshObject *m_mesh;
-	DerivedMesh *m_pDerivedMesh;
 	RAS_MeshUser *m_meshUser;
 
 	/// Batch index used for batching render.

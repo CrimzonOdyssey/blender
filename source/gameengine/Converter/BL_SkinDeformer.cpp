@@ -145,11 +145,6 @@ void BL_SkinDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 
 bool BL_SkinDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array)
 {
-	// if we don't use a vertex array we does nothing.
-	if (!UseVertexArray() || !meshmat || !array) {
-		return false;
-	}
-
 	RAS_IDisplayArray *origarray = meshmat->GetDisplayArray();
 
 	const short modifiedFlag = origarray->GetModifiedFlag();
@@ -302,11 +297,6 @@ void BL_SkinDeformer::BGEDeformVerts()
 
 void BL_SkinDeformer::UpdateTransverts()
 {
-	// if we don't use a vertex array we does nothing.
-	if (!UseVertexArray()) {
-		return;
-	}
-
 	bool first = true;
 	if (m_transverts) {
 		// AABB Box : min/max.

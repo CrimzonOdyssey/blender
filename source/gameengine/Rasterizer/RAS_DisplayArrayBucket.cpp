@@ -59,24 +59,17 @@ RAS_DisplayArrayBucket::RAS_DisplayArrayBucket(RAS_MaterialBucket *bucket, RAS_I
 	m_deformer(deformer),
 	m_storageInfo(nullptr),
 	m_instancingBuffer(nullptr),
+	m_downwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNode), nullptr),
+	m_upwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::BindUpwardNode),
+			std::mem_fn(&RAS_DisplayArrayBucket::UnbindUpwardNode)),
 	m_instancingNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::RunInstancingNode), nullptr),
 	m_batchingNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::RunBatchingNode), nullptr)
 {
+	BLI_assert(m_displayArray);
 	m_bucket->AddDisplayArrayBucket(this);
 
-	if (m_displayArray) {
-		m_downwardNode = RAS_DisplayArrayDownwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNode), nullptr);
-		m_upwardNode = RAS_DisplayArrayUpwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::BindUpwardNode),
-												  std::mem_fn(&RAS_DisplayArrayBucket::UnbindUpwardNode));
-	}
-	else {
-		// If there's no display array then we draw using derived mesh, in this case the display array bind/unbind should be avoid.
-		m_downwardNode = RAS_DisplayArrayDownwardNode(this, &m_nodeData, std::mem_fn(&RAS_DisplayArrayBucket::RunDownwardNodeNoArray), nullptr);
-		m_upwardNode = RAS_DisplayArrayUpwardNode(this, &m_nodeData, nullptr, nullptr);
-	}
-
 	// Initialize node arguments.
-	m_nodeData.m_array = array;
+	m_nodeData.m_array = m_displayArray;
 }
 
 RAS_DisplayArrayBucket::~RAS_DisplayArrayBucket()
@@ -138,7 +131,7 @@ void RAS_DisplayArrayBucket::RemoveActiveMeshSlots()
 
 bool RAS_DisplayArrayBucket::UseBatching() const
 {
-	return (m_displayArray && m_displayArray->GetType() == RAS_IDisplayArray::BATCHING);
+	return (m_displayArray->GetType() == RAS_IDisplayArray::BATCHING);
 }
 
 void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
@@ -147,26 +140,24 @@ void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 		m_deformer->Apply(m_meshMaterial, m_displayArray);
 	}
 
-	if (m_displayArray) {
-		const unsigned short modifiedFlag = m_displayArray->GetModifiedFlag();
+	const unsigned short modifiedFlag = m_displayArray->GetModifiedFlag();
 
-		// Create the storage info if it was destructed or not yet created.
-		if (!m_storageInfo) {
-			m_storageInfo = rasty->GetStorageInfo(m_displayArray, m_bucket->UseInstancing());
+	// Create the storage info if it was destructed or not yet created.
+	if (!m_storageInfo) {
+		m_storageInfo = rasty->GetStorageInfo(m_displayArray, m_bucket->UseInstancing());
+	}
+	// Set the storage info modified if the mesh is modified.
+	else {
+		if (modifiedFlag & RAS_IDisplayArray::SIZE_MODIFIED) {
+			m_storageInfo->UpdateSize();
 		}
-		// Set the storage info modified if the mesh is modified.
-		else {
-			if (modifiedFlag & RAS_IDisplayArray::SIZE_MODIFIED) {
-				m_storageInfo->UpdateSize();
-			}
-			else if (modifiedFlag & RAS_IDisplayArray::MESH_MODIFIED) {
-				m_storageInfo->UpdateVertexData();
-			}
+		else if (modifiedFlag & RAS_IDisplayArray::MESH_MODIFIED) {
+			m_storageInfo->UpdateVertexData();
 		}
+	}
 
-		if (modifiedFlag != RAS_IDisplayArray::NONE_MODIFIED) {
-			m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);
-		}
+	if (modifiedFlag != RAS_IDisplayArray::NONE_MODIFIED) {
+		m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);
 	}
 
 	// Update node data.
