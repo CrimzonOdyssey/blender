@@ -48,6 +48,18 @@
 
 #include <algorithm>
 
+RAS_MeshObject::SharedVertexPredicate::SharedVertexPredicate(RAS_ITexVert *vertex, RAS_IDisplayArray *array)
+	:m_vertex(vertex),
+	m_array(array)
+{
+}
+
+bool RAS_MeshObject::SharedVertexPredicate::operator()(const RAS_MeshObject::SharedVertex& sharedVert) const
+{
+	RAS_IDisplayArray *otherArray = sharedVert.array;
+	return (m_array == otherArray) && (otherArray->GetVertexNoCache(sharedVert.offset)->closeTo(m_vertex));
+}
+
 // polygon sorting
 
 struct RAS_MeshObject::polygonSlot
@@ -249,6 +261,7 @@ unsigned int RAS_MeshObject::AddVertex(
 				const bool flat,
 				const unsigned int origindex)
 {
+#if 0
 	RAS_IDisplayArray *darray = meshmat->GetDisplayArray();
 	RAS_ITexVert *vertex = darray->CreateVertex(xyz, uvs, tangent, rgba, normal);
 
@@ -287,6 +300,9 @@ unsigned int RAS_MeshObject::AddVertex(
 
 	delete vertex;
 	return offset;
+#endif
+
+	return 0;
 }
 
 RAS_IDisplayArray *RAS_MeshObject::GetDisplayArray(unsigned int matid) const
@@ -314,9 +330,9 @@ RAS_ITexVert *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
 
 const float *RAS_MeshObject::GetVertexLocation(unsigned int orig_index)
 {
-	std::vector<SharedVertex>& sharedmap = m_sharedvertex_map[orig_index];
-	std::vector<SharedVertex>::iterator it = sharedmap.begin();
-	return it->m_darray->GetVertex(it->m_offset)->getXYZ();
+	const SharedVertexList& sharedmap = m_sharedvertex_map[orig_index];
+	const SharedVertex& sharedVert = sharedmap[0];
+	return sharedVert.array->GetVertex(sharedVert.offset)->getXYZ();
 }
 
 RAS_BoundingBox *RAS_MeshObject::GetBoundingBox() const

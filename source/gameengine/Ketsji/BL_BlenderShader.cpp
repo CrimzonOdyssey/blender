@@ -79,17 +79,11 @@ const RAS_Rasterizer::AttribLayerList BL_BlenderShader::GetAttribLayers(const RA
 				continue;
 			}
 
-			for (RAS_MeshObject::LayerList::const_iterator it = layersInfo.layers.begin(), end = layersInfo.layers.end();
-			     it != end; ++it) {
-				const RAS_MeshObject::Layer& layer = *it;
-				bool found = false;
-				if (attribs.layer[i].type == CD_MTFACE && layer.uv && layer.name == attribname) {
-					found = true;
-				}
-				else if (attribs.layer[i].type == CD_MCOL && layer.color && layer.name == attribname) {
-					found = true;
-				}
-				if (found) {
+			for (const RAS_MeshObject::Layer& layer : layersInfo.layers) {
+				if ((layer.name == attribname) &&
+					((attribs.layer[i].type == CD_MTFACE && layer.type == RAS_MeshObject::Layer::UV) ||
+					(attribs.layer[i].type == CD_MCOL && RAS_MeshObject::Layer::COLOR)))
+				{
 					attribLayers[attribs.layer[i].glindex] = layer.index;
 					break;
 				}

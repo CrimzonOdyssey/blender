@@ -109,7 +109,7 @@ public:
 		return m_vertexInfos[index];
 	}
 
-	virtual void AddVertex(RAS_ITexVert *vert) = 0;
+	virtual unsigned int AddVertex(RAS_ITexVert *vert) = 0;
 
 	inline void AddIndex(const unsigned int index)
 	{
@@ -120,6 +120,8 @@ public:
 	{
 		m_vertexInfos.push_back(info);
 	}
+
+	virtual void Clear() = 0;
 
 	virtual const RAS_ITexVert *GetVertexPointer() const = 0;
 
@@ -164,6 +166,7 @@ public:
 		UVS_MODIFIED = 1 << 2, // Vertex UVs modified.
 		COLORS_MODIFIED = 1 << 3, // Vertex colors modified.
 		TANGENT_MODIFIED = 1 << 4, // Vertex tangent modified.
+		SIZE_MODIFIED = 1 << 5, // Vertex and index array changed of size.
 		AABB_MODIFIED = POSITION_MODIFIED,
 		MESH_MODIFIED = POSITION_MODIFIED | NORMAL_MODIFIED | UVS_MODIFIED |
 						COLORS_MODIFIED | TANGENT_MODIFIED

@@ -143,25 +143,29 @@ bool RAS_DisplayArrayBucket::UseBatching() const
 
 void RAS_DisplayArrayBucket::UpdateActiveMeshSlots(RAS_Rasterizer *rasty)
 {
-	bool arrayModified = false;
-
 	if (m_deformer) {
 		m_deformer->Apply(m_meshMaterial, m_displayArray);
 	}
 
 	if (m_displayArray) {
-		if (m_displayArray->GetModifiedFlag() & RAS_IDisplayArray::MESH_MODIFIED) {
-			arrayModified = true;
-			m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);
-		}
+		const unsigned short modifiedFlag = m_displayArray->GetModifiedFlag();
 
 		// Create the storage info if it was destructed or not yet created.
 		if (!m_storageInfo) {
 			m_storageInfo = rasty->GetStorageInfo(m_displayArray, m_bucket->UseInstancing());
 		}
 		// Set the storage info modified if the mesh is modified.
-		else if (arrayModified) {
-			m_storageInfo->UpdateVertexData();
+		else {
+			if (modifiedFlag & RAS_IDisplayArray::SIZE_MODIFIED) {
+				m_storageInfo->UpdateSize();
+			}
+			else if (modifiedFlag & RAS_IDisplayArray::MESH_MODIFIED) {
+				m_storageInfo->UpdateVertexData();
+			}
+		}
+
+		if (modifiedFlag != RAS_IDisplayArray::NONE_MODIFIED) {
+			m_displayArray->SetModifiedFlag(RAS_IDisplayArray::NONE_MODIFIED);
 		}
 	}
 

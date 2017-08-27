@@ -82,7 +82,7 @@ public:
 	virtual ~BL_ModifierDeformer();
 	virtual bool UseVertexArray()
 	{
-		return false;
+		return true;
 	}
 
 	bool Update();
@@ -99,6 +99,9 @@ public:
 	virtual DerivedMesh *GetPhysicsMesh();
 
 protected:
+	void UpdateBounds();
+	virtual void UpdateTransverts();
+
 	double m_lastModifierUpdate;
 	Scene *m_scene;
 	DerivedMesh *m_dm;

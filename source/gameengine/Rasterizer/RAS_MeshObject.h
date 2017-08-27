@@ -69,8 +69,11 @@ public:
 	 * attribute's names in shader and names of the mesh layers here.
 	 */
 	struct Layer {
-		MLoopUV *uv;
-		MLoopCol *color;
+		/// The type of the layer, uv or color.
+		enum Type {
+			UV,
+			COLOR
+		} type;
 		/// The index of the color or uv layer in the vertices.
 		unsigned short index;
 		/// The name of the color or uv layer used to find corresponding material attributes.
@@ -85,6 +88,31 @@ public:
 		unsigned short activeColor;
 		// The active uv layer index as default.
 		unsigned short activeUv;
+		// The number of uv layers.
+		unsigned short uvCount;
+		// The number of color layers.
+		unsigned short colorCount;
+	};
+
+
+	// for construction to find shared vertices
+	struct SharedVertex {
+		RAS_IDisplayArray *array;
+		unsigned int offset;
+	};
+
+	using SharedVertexList = std::vector<SharedVertex>;
+	using SharedVertexMap = std::vector<SharedVertexList>;
+
+	class SharedVertexPredicate
+	{
+	private:
+		RAS_ITexVert *m_vertex;
+		RAS_IDisplayArray *m_array;
+
+	public:
+		SharedVertexPredicate(RAS_ITexVert *vertex, RAS_IDisplayArray *array);
+		bool operator()(const SharedVertex& sharedVert) const;
 	};
 
 private:
@@ -170,14 +198,7 @@ public:
 
 	bool HasColliderPolygon();
 
-	// for construction to find shared vertices
-	struct SharedVertex
-	{
-		RAS_IDisplayArray *m_darray;
-		int m_offset;
-	};
-
-	std::vector<std::vector<SharedVertex> > m_sharedvertex_map;
+	SharedVertexMap m_sharedvertex_map;
 };
 
 #endif  // __RAS_MESHOBJECT_H__

@@ -337,31 +337,37 @@ SCA_IInputDevice::SCA_EnumInputs ConvertKeyCode(int key_code)
 	return gReverseKeyTranslateTable[key_code];
 }
 
-static void GetUvRgba(const RAS_MeshObject::LayerList& layers, unsigned int loop,
-		MT_Vector2 uvs[RAS_Texture::MaxUnits], unsigned int rgba[RAS_ITexVert::MAX_UNIT],
-		unsigned short uvLayers, unsigned short colorLayers)
+static void GetUvRgba(const RAS_MeshObject::LayerList& layers, std::vector<MLoopUV *>& uvLayers, std::vector<MLoopCol *>& colorLayers,
+		unsigned short uvCount, unsigned short colorCount,
+		unsigned int loop, MT_Vector2 uvs[RAS_Texture::MaxUnits], unsigned int rgba[RAS_ITexVert::MAX_UNIT])
 {
 	// No need to initialize layers to zero as all the converted layer are all the layers needed.
 
 	for (const RAS_MeshObject::Layer& layer : layers) {
 		const unsigned short index = layer.index;
-		if (layer.color) {
-			const MLoopCol& col = layer.color[loop];
-
-			union Convert
+		switch (layer.index) {
+			case RAS_MeshObject::Layer::COLOR:
 			{
-				// Color isn't swapped in MLoopCol.
-				MLoopCol col;
-				unsigned int val;
-			};
-			Convert con;
-			con.col = col;
+				const MLoopCol& col = colorLayers[index][loop];
 
-			rgba[index] = con.val;
-		}
-		else if (layer.uv) {
-			const MLoopUV& uv = layer.uv[loop];
-			uvs[index].setValue(uv.uv);
+				union Convert
+				{
+					// Color isn't swapped in MLoopCol.
+					MLoopCol col;
+					unsigned int val;
+				};
+				Convert con;
+				con.col = col;
+
+				rgba[index] = con.val;
+				break;
+			}
+			case RAS_MeshObject::Layer::UV:
+			{
+				const MLoopUV& uv = uvLayers[index][loop];
+				uvs[index].setValue(uv.uv);
+				break;
+			}
 		}
 	}
 
@@ -369,10 +375,10 @@ static void GetUvRgba(const RAS_MeshObject::LayerList& layers, unsigned int loop
 	 * even if it they are not used in any shaders. Initialize this layer to zero
 	 * when no uv or color layer exist.
 	 */
-	if (uvLayers == 0) {
+	if (uvCount == 0) {
 		uvs[0] = MT_Vector2(0.0f, 0.0f);
 	}
-	if (colorLayers == 0) {
+	if (colorCount == 0) {
 		rgba[0] = 0xFFFFFFFF;
 	}
 }
@@ -411,6 +417,7 @@ static RAS_MaterialBucket *material_from_mesh(Material *ma, int lightlayer, KX_S
 	return bucket;
 }
 
+#if 0
 /* blenderobj can be nullptr, make sure its checked for */
 RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, BL_BlenderSceneConverter& converter, bool libloading)
 {
@@ -487,7 +494,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	vertformat.uvSize = max_ii(1, uvLayers);
 	vertformat.colorSize = max_ii(1, colorLayers);
 
-	struct ConvertedMaterial
+	struct BL_MeshMaterial
 	{
 		Material *ma;
 		RAS_MeshMaterial *meshmat;
@@ -498,7 +505,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	};
 
 	const unsigned short totmat = max_ii(mesh->totcol, 1);
-	std::vector<ConvertedMaterial> convertedMats(totmat);
+	std::vector<BL_MeshMaterial> convertedMats(totmat);
 
 	// Convert all the materials contained in the mesh.
 	for (unsigned short i = 0; i < totmat; ++i) {
@@ -533,7 +540,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	for (unsigned int i = 0; i < numpolys; ++i) {
 		const MPoly& mpoly = mpolys[i];
 
-		const ConvertedMaterial& mat = convertedMats[mpoly.mat_nr];
+		const BL_MeshMaterial& mat = convertedMats[mpoly.mat_nr];
 		RAS_MeshMaterial *meshmat = mat.meshmat;
 
 		// Mark face as flat, so vertices are split.
@@ -605,6 +612,253 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	converter.RegisterGameMesh(meshobj, mesh);
 	return meshobj;
 }
+#endif
+/* blenderobj can be nullptr, make sure its checked for */
+RAS_MeshObject* BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL_BlenderSceneConverter& converter, bool libloading)
+{
+	RAS_MeshObject *meshobj;
+	const int lightlayer = blenderobj ? blenderobj->lay : (1 << 20) -1; // all layers if no object.
+
+	// Without checking names, we get some reuse we don't want that can cause
+	// problems with material LoDs.
+	if (blenderobj && ((meshobj = converter.FindGameMesh(me/*, ob->lay*/)) != nullptr)) {
+		const std::string bge_name = meshobj->GetName();
+		const std::string blender_name = ((ID *)blenderobj->data)->name + 2;
+		if (bge_name == blender_name) {
+			return meshobj;
+		}
+	}
+
+	// Get DerivedMesh data.
+	DerivedMesh *dm = CDDM_from_mesh(me);
+
+	/* Extract available layers.
+	 * Get the active color and uv layer. */
+	const short activeUv = CustomData_get_active_layer(&dm->loopData, CD_MLOOPUV);
+	const short activeColor = CustomData_get_active_layer(&dm->loopData, CD_MLOOPCOL);
+	const unsigned short uvCount = CustomData_number_of_layers(&dm->loopData, CD_MLOOPUV);
+	const unsigned short colorCount = CustomData_number_of_layers(&dm->loopData, CD_MLOOPCOL);
+
+	RAS_MeshObject::LayersInfo layersInfo;
+	layersInfo.activeUv = (activeUv == -1) ? 0 : activeUv;
+	layersInfo.activeColor = (activeColor == -1) ? 0 : activeColor;
+	layersInfo.uvCount = uvCount;
+	layersInfo.colorCount = colorCount;
+
+	// Extract UV loops.
+	for (unsigned short i = 0; i < uvCount; ++i) {
+		const std::string name = CustomData_get_layer_name(&dm->loopData, CD_MLOOPUV, i);
+		layersInfo.layers.push_back({RAS_MeshObject::Layer::UV, i, name});
+	}
+	// Extract color loops.
+	for (unsigned short i = 0; i < colorCount; ++i) {
+		const std::string name = CustomData_get_layer_name(&dm->loopData, CD_MLOOPCOL, i);
+		layersInfo.layers.push_back({RAS_MeshObject::Layer::COLOR, i, name});
+	}
+
+	// Initialize vertex format with used uv and color layers.
+	RAS_TexVertFormat vertformat;
+	vertformat.uvSize = max_ii(1, uvCount);
+	vertformat.colorSize = max_ii(1, colorCount);
+
+	meshobj = new RAS_MeshObject(me, layersInfo);
+
+	const unsigned short totmat = max_ii(me->totcol, 1);
+	std::vector<BL_MeshMaterial> mats(totmat);
+	// Convert all the materials contained in the mesh.
+	for (unsigned short i = 0; i < totmat; ++i) {
+		Material *ma = nullptr;
+		if (blenderobj) {
+			ma = give_current_material(blenderobj, i + 1);
+		}
+		else {
+			ma = me->mat ? me->mat[i] : nullptr;
+		}
+		// Check for blender material
+		if (!ma) {
+			ma = &defmaterial;
+		}
+
+		RAS_MaterialBucket *bucket = material_from_mesh(ma, lightlayer, scene, converter);
+		RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, i, vertformat);
+
+		mats[i] = {meshmat->GetDisplayArray(), ((ma->game.flag & GEMAT_INVISIBLE) == 0), ((ma->game.flag  & GEMAT_BACKCULL) == 0),
+			((ma->game.flag & GEMAT_NOPHYSICS) == 0), bucket->IsWire()};
+	}
+
+	BL_ConvertDerivedMeshToArray(dm, me, mats, layersInfo, meshobj->m_sharedvertex_map);
+
+	// keep meshobj->m_sharedvertex_map for reinstance phys mesh.
+	// 2.49a and before it did: meshobj->m_sharedvertex_map.clear();
+	// but this didnt save much ram. - Campbell
+	meshobj->EndConversion(scene->GetBoundingBoxManager());
+
+	// Finalize materials.
+	// However, we want to delay this if we're libloading so we can make sure we have the right scene.
+	if (!libloading) {
+		for (unsigned short i = 0, num = meshobj->NumMaterials(); i < num; ++i) {
+			RAS_MeshMaterial *mmat = meshobj->GetMeshMaterial(i);
+			mmat->GetBucket()->GetPolyMaterial()->OnConstruction();
+		}
+	}
+
+	// Find attributes layer by materials for this mesh.
+	meshobj->GenerateAttribLayers();
+
+	dm->release(dm);
+
+	converter.RegisterGameMesh(meshobj, me);
+	return meshobj;
+}
+
+void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<BL_MeshMaterial>& mats,
+		const RAS_MeshObject::LayersInfo& layersInfo, RAS_MeshObject::SharedVertexMap& r_sharedVerts)
+{
+	DM_ensure_tessface(dm);
+
+	const MVert *mverts = dm->getVertArray(dm);
+	const int totverts = dm->getNumVerts(dm);
+	const MFace *mfaces = dm->getTessFaceArray(dm);
+	const MPoly *mpolys = (MPoly *)dm->getPolyArray(dm);
+	const MLoop *mloops = (MLoop *)dm->getLoopArray(dm);
+	const MEdge *medges = (MEdge *)dm->getEdgeArray(dm);
+	const unsigned int numpolys = dm->getNumPolys(dm);
+	const int totfaces = dm->getNumTessFaces(dm);
+	const int *mfaceToMpoly = (int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
+
+	if (CustomData_get_layer_index(&dm->loopData, CD_NORMAL) == -1) {
+		dm->calcLoopNormals(dm, (me->flag & ME_AUTOSMOOTH), me->smoothresh);
+	}
+	const float (*normals)[3] = (float (*)[3])dm->getLoopDataArray(dm, CD_NORMAL);
+
+	float (*tangent)[4] = nullptr;
+	if (layersInfo.uvCount > 0) {
+		if (CustomData_get_layer_index(&dm->loopData, CD_TANGENT) == -1) {
+			DM_calc_loop_tangents(dm, true, nullptr, 0);
+		}
+		tangent = (float(*)[4])dm->getLoopDataArray(dm, CD_TANGENT);
+	}
+
+	std::vector<MLoopUV *> uvLayers(layersInfo.uvCount);
+	std::vector<MLoopCol *> colorLayers(layersInfo.colorCount);
+
+	for (const RAS_MeshObject::Layer& layer : layersInfo.layers) {
+		const unsigned short index = layer.index;
+		switch (layer.type) {
+			case RAS_MeshObject::Layer::UV:
+			{
+				uvLayers[index] = (MLoopUV *)CustomData_get_layer_n(&dm->loopData, CD_MLOOPUV, index);
+				break;
+			}
+			case RAS_MeshObject::Layer::COLOR:
+			{
+				colorLayers[index] = (MLoopCol *)CustomData_get_layer_n(&dm->loopData, CD_MLOOPCOL, index);
+				break;
+			}
+		}
+	}
+
+	r_sharedVerts.resize(totverts);
+
+	std::vector<std::vector<unsigned int> > mpolyToMface(numpolys);
+	// Generate a list of all mfaces wrapped by a mpoly.
+	for (unsigned int i = 0; i < totfaces; ++i) {
+		mpolyToMface[mfaceToMpoly[i]].push_back(i);
+	}
+
+	// Tracked vertices during a mpoly conversion, should never be used by the next mpoly.
+	std::vector<unsigned int> vertices(totverts, -1);
+
+	for (unsigned int i = 0; i < numpolys; ++i) {
+		const MPoly& mpoly = mpolys[i];
+
+		const BL_MeshMaterial& mat = mats[mpoly.mat_nr];
+		RAS_IDisplayArray *array = mat.array;
+
+		// Mark face as flat, so vertices are split.
+		const bool flat = (mpoly.flag & ME_SMOOTH) == 0;
+
+		const unsigned int lpstart = mpoly.loopstart;
+		const unsigned int totlp = mpoly.totloop;
+		for (unsigned int j = lpstart; j < lpstart + totlp; ++j) {
+			const MLoop& mloop = mloops[j];
+			const unsigned int vertid = mloop.v;
+			const MVert& mvert = mverts[vertid];
+
+			const MT_Vector3 pt(mvert.co);
+			const MT_Vector3 no(normals[j]);
+			const MT_Vector4 tan = tangent ? MT_Vector4(tangent[j]) : MT_Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+			MT_Vector2 uvs[RAS_Texture::MaxUnits];
+			unsigned int rgba[RAS_Texture::MaxUnits];
+
+			GetUvRgba(layersInfo.layers, uvLayers, colorLayers, layersInfo.uvCount, layersInfo.colorCount, j, uvs, rgba);
+
+			RAS_ITexVert *vertex = array->CreateVertex(pt, uvs, tan, rgba, no);
+
+			RAS_MeshObject::SharedVertexList& sharedList = r_sharedVerts[vertid];
+			RAS_MeshObject::SharedVertexList::iterator it = std::find_if(sharedList.begin(), sharedList.end(),
+					RAS_MeshObject::SharedVertexPredicate(vertex, array));
+
+			unsigned int offset;
+			if (it != sharedList.end()) {
+				offset = it->offset;
+			}
+			else {
+				offset = array->AddVertex(vertex);
+				const RAS_TexVertInfo info(vertid, flat);
+				array->AddVertexInfo(info);
+				sharedList.push_back({array, offset});
+			}
+
+			// Add tracked vertices by the mpoly.
+			vertices[vertid] = offset;
+			delete vertex;
+		}
+
+		// Convert to edges of material is rendering wire.
+		if (mat.wire && mat.visible) {
+			for (unsigned int j = lpstart; j < lpstart + totlp; ++j) {
+				const MLoop& mloop = mloops[j];
+				const MEdge& edge = medges[mloop.e];
+				array->AddIndex(vertices[edge.v1]);
+				array->AddIndex(vertices[edge.v2]);
+			}
+		}
+
+		// True if we can add indices to make rendered triangles.
+		const bool addIndice = !mat.wire && mat.visible;
+		// Convert all faces (triangles of quad).
+		for (unsigned int j : mpolyToMface[i]) {
+			const MFace& mface = mfaces[j];
+			const unsigned short nverts = (mface.v4) ? 4 : 3;
+
+			unsigned int indices[4];
+			indices[0] = vertices[mface.v1];
+			indices[1] = vertices[mface.v2];
+			indices[2] = vertices[mface.v3];
+			indices[3] = vertices[mface.v4];
+
+			if (addIndice) {
+				// Add the first triangle.
+				array->AddIndex(indices[0]);
+				array->AddIndex(indices[1]);
+				array->AddIndex(indices[2]);
+
+				if (nverts == 4) {
+					// Add the second triangle.
+					array->AddIndex(indices[0]);
+					array->AddIndex(indices[2]);
+					array->AddIndex(indices[3]);
+				}
+			}
+
+			// TODO RAS_Polygon
+
+// 			meshobj->AddPolygon(meshmat, nverts, indices, mat.visible, mat.collider, mat.twoside);
+		}
+	}
+}
+
 
 static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blenderobject)
 {
