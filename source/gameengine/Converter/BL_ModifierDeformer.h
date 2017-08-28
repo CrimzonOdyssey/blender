@@ -87,12 +87,6 @@ public:
 	{
 		m_lastModifierUpdate = -1.0;
 	}
-	virtual DerivedMesh *GetFinalMesh()
-	{
-		return m_dm;
-	}
-	// The derived mesh returned by this function must be released!
-	virtual DerivedMesh *GetPhysicsMesh();
 
 protected:
 	void UpdateBounds();

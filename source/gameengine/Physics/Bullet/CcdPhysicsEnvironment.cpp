@@ -2679,7 +2679,7 @@ CcdPhysicsEnvironment *CcdPhysicsEnvironment::Create(Scene *blenderscene, bool v
 }
 
 void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, KX_GameObject *gameobj, RAS_MeshObject *meshobj,
-										  DerivedMesh *dm, KX_Scene *kxscene, PHY_ShapeProps *shapeprops, PHY_IMotionState *motionstate,
+										  KX_Scene *kxscene, PHY_ShapeProps *shapeprops, PHY_IMotionState *motionstate,
 										  int activeLayerBitInfo, bool isCompoundChild, bool hasCompoundChildren)
 {
 	Object *blenderobject = gameobj->GetBlenderObject();
@@ -2902,7 +2902,18 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 		}
 		case OB_BOUND_CONVEX_HULL:
 		{
-			shapeInfo->SetMesh(meshobj, dm, true);
+			// Convex shapes can be shared, check first if we already have a shape on that mesh.
+			CcdShapeConstructionInfo *sharedShapeInfo = CcdShapeConstructionInfo::FindMesh(meshobj, gameobj->GetDeformer(), PHY_SHAPE_POLYTOPE);
+			if (sharedShapeInfo) {
+				shapeInfo->Release();
+				shapeInfo = sharedShapeInfo;
+				shapeInfo->AddRef();
+			}
+			else {
+				shapeInfo->m_shapeType = PHY_SHAPE_POLYTOPE;
+				shapeInfo->UpdateMesh(gameobj, meshobj);
+			}
+
 			bm = shapeInfo->CreateBulletShape(ci.m_margin);
 			break;
 		}
@@ -2918,15 +2929,16 @@ void CcdPhysicsEnvironment::ConvertObject(BL_BlenderSceneConverter& converter, K
 		}
 		case OB_BOUND_TRIANGLE_MESH:
 		{
-			// mesh shapes can be shared, check first if we already have a shape on that mesh
-			class CcdShapeConstructionInfo *sharedShapeInfo = CcdShapeConstructionInfo::FindMesh(meshobj, dm, false);
-			if (sharedShapeInfo != nullptr) {
+			// Mesh shapes can be shared, check first if we already have a shape on that mesh.
+			CcdShapeConstructionInfo *sharedShapeInfo = CcdShapeConstructionInfo::FindMesh(meshobj, gameobj->GetDeformer(), PHY_SHAPE_MESH);
+			if (sharedShapeInfo) {
 				shapeInfo->Release();
 				shapeInfo = sharedShapeInfo;
 				shapeInfo->AddRef();
 			}
 			else {
-				shapeInfo->SetMesh(meshobj, dm, false);
+				shapeInfo->m_shapeType = PHY_SHAPE_MESH;
+				shapeInfo->UpdateMesh(gameobj, meshobj);
 			}
 
 			// Soft bodies can benefit from welding, don't do it on non-soft bodies

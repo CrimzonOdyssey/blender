@@ -485,9 +485,9 @@ RAS_MeshObject* BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL
 
 		RAS_MaterialBucket *bucket = material_from_mesh(ma, lightlayer, scene, converter);
 		RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, i, vertformat);
+		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
 
-		mats[i] = {meshmat->GetDisplayArray(), ((ma->game.flag & GEMAT_INVISIBLE) == 0), ((ma->game.flag  & GEMAT_BACKCULL) == 0),
-			((ma->game.flag & GEMAT_NOPHYSICS) == 0), bucket->IsWire()};
+		mats[i] = {meshmat->GetDisplayArray(), mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
 	}
 
 	BL_ConvertDerivedMeshToArray(dm, me, mats, layersInfo, meshobj->m_sharedvertex_map);
@@ -794,13 +794,9 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	PHY_ShapeProps* shapeprops =
 			CreateShapePropsFromBlenderObject(blenderobject);
 
-	DerivedMesh* dm = nullptr;
-	if (gameobj->GetDeformer())
-		dm = gameobj->GetDeformer()->GetPhysicsMesh();
-
 	class PHY_IMotionState* motionstate = new KX_MotionState(gameobj->GetSGNode());
 
-	kxscene->GetPhysicsEnvironment()->ConvertObject(converter, gameobj, meshobj, dm, kxscene, shapeprops, motionstate, activeLayerBitInfo, isCompoundChild, hasCompoundChildren);
+	kxscene->GetPhysicsEnvironment()->ConvertObject(converter, gameobj, meshobj, kxscene, shapeprops, motionstate, activeLayerBitInfo, isCompoundChild, hasCompoundChildren);
 
 	bool isActor = (blenderobject->gameflag & OB_ACTOR)!=0;
 	bool isSensor = (blenderobject->gameflag & OB_SENSOR) != 0;
@@ -809,10 +805,6 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 		(isActor) ? KX_ClientObjectInfo::ACTOR : KX_ClientObjectInfo::STATIC;
 
 	delete shapeprops;
-	if (dm) {
-		dm->needsFree = 1;
-		dm->release(dm);
-	}
 }
 
 static KX_LodManager *lodmanager_from_blenderobject(Object *ob, KX_Scene *scene, BL_BlenderSceneConverter& converter, bool libloading)

@@ -103,9 +103,6 @@ bool BL_ModifierDeformer::HasCompatibleDeformer(Object *ob)
 {
 	if (!ob->modifiers.first)
 		return false;
-	// soft body cannot use mesh modifiers
-	if ((ob->gameflag & OB_SOFT_BODY) != 0)
-		return false;
 	ModifierData *md;
 	for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
 		if (modifier_dependsOnTime(md))
@@ -130,42 +127,6 @@ bool BL_ModifierDeformer::HasArmatureDeformer(Object *ob)
 		return true;
 
 	return false;
-}
-
-// return a deformed mesh that supports mapping (with a valid CD_ORIGINDEX layer)
-DerivedMesh *BL_ModifierDeformer::GetPhysicsMesh()
-{
-	/* we need to compute the deformed mesh taking into account the current
-	 * shape and skin deformers, we cannot just call mesh_create_derived_physics()
-	 * because that would use the m_transvers already deformed previously by BL_ModifierDeformer::Update(),
-	 * so restart from scratch by forcing a full update the shape/skin deformers
-	 * (will do nothing if there is no such deformer) */
-	BL_ShapeDeformer::ForceUpdate();
-	BL_ShapeDeformer::Update();
-	// now apply the modifiers but without those that don't support mapping
-	Object *blendobj = m_gameobj->GetBlenderObject();
-	/* hack: the modifiers require that the mesh is attached to the object
-	 * It may not be the case here because of replace mesh actuator */
-	Mesh *oldmesh = (Mesh *)blendobj->data;
-	blendobj->data = m_bmesh;
-	DerivedMesh *dm = mesh_create_derived_physics(m_scene, blendobj, m_transverts, CD_MASK_MESH);
-	/* restore object data */
-	blendobj->data = oldmesh;
-
-	// Some meshes with modifiers returns 0 polys, call DM_ensure_tessface avoid this.
-	DM_ensure_tessface(dm);
-
-	/* m_transverts is correct here (takes into account deform only modifiers) */
-	/* the derived mesh returned by this function must be released by the caller !!! */
-	return dm;
-}
-
-void BL_ModifierDeformer::UpdateBounds()
-{
-	float min[3], max[3];
-	INIT_MINMAX(min, max);
-	m_dm->getMinMax(m_dm, min, max);
-	m_boundingBox->SetAabb(MT_Vector3(min), MT_Vector3(max));
 }
 
 bool BL_ModifierDeformer::Update(void)
@@ -211,6 +172,14 @@ bool BL_ModifierDeformer::Update(void)
 	return bShapeUpdate;
 }
 
+void BL_ModifierDeformer::UpdateBounds()
+{
+	float min[3], max[3];
+	INIT_MINMAX(min, max);
+	m_dm->getMinMax(m_dm, min, max);
+	m_boundingBox->SetAabb(MT_Vector3(min), MT_Vector3(max));
+}
+
 void BL_ModifierDeformer::UpdateTransverts()
 {
 	if (!m_dm) {
@@ -225,9 +194,9 @@ void BL_ModifierDeformer::UpdateTransverts()
 		RAS_MeshMaterial *meshmat = m_mesh->GetMeshMaterial(i);
 		RAS_IDisplayArray *array = m_displayArrayList[i];
 		array->Clear();
-		mats[i] = {array, true, true, true, meshmat->GetBucket()->IsWire()};
-			/*((ma->game.flag & GEMAT_INVISIBLE) == 0), ((ma->game.flag  & GEMAT_BACKCULL) == 0),
-			((ma->game.flag & GEMAT_NOPHYSICS) == 0), bucket->IsWire()}; TODO */ 
+
+		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
+		mats[i] = {array, mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
 	}
 
 	RAS_MeshObject::SharedVertexMap sharedMap;
