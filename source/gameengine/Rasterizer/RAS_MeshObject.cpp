@@ -48,18 +48,6 @@
 
 #include <algorithm>
 
-RAS_MeshObject::SharedVertexPredicate::SharedVertexPredicate(RAS_ITexVert *vertex, RAS_IDisplayArray *array)
-	:m_vertex(vertex),
-	m_array(array)
-{
-}
-
-bool RAS_MeshObject::SharedVertexPredicate::operator()(const RAS_MeshObject::SharedVertex& sharedVert) const
-{
-	RAS_IDisplayArray *otherArray = sharedVert.array;
-	return (m_array == otherArray) && (otherArray->GetVertexNoCache(sharedVert.offset)->closeTo(m_vertex));
-}
-
 // polygon sorting
 
 struct RAS_MeshObject::polygonSlot
@@ -124,7 +112,6 @@ RAS_MeshObject::RAS_MeshObject(Mesh *mesh, const LayersInfo& layersInfo)
 
 RAS_MeshObject::~RAS_MeshObject()
 {
-	m_sharedvertex_map.clear();
 	m_polygons.clear();
 
 	for (RAS_MeshMaterialList::iterator it = m_materials.begin(), end = m_materials.end(); it != end; ++it) {
@@ -228,13 +215,6 @@ RAS_ITexVert *RAS_MeshObject::GetVertex(unsigned int matid, unsigned int index)
 	}
 
 	return nullptr;
-}
-
-const float *RAS_MeshObject::GetVertexLocation(unsigned int orig_index)
-{
-	const SharedVertexList& sharedmap = m_sharedvertex_map[orig_index];
-	const SharedVertex& sharedVert = sharedmap[0];
-	return sharedVert.array->GetVertex(sharedVert.offset)->getXYZ();
 }
 
 RAS_BoundingBox *RAS_MeshObject::GetBoundingBox() const

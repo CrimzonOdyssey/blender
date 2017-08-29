@@ -94,33 +94,14 @@ public:
 		unsigned short colorCount;
 	};
 
-
-	// for construction to find shared vertices
-	struct SharedVertex {
-		RAS_IDisplayArray *array;
-		unsigned int offset;
-	};
-
-	using SharedVertexList = std::vector<SharedVertex>;
-	using SharedVertexMap = std::vector<SharedVertexList>;
-
-	class SharedVertexPredicate
-	{
-	private:
-		RAS_ITexVert *m_vertex;
-		RAS_IDisplayArray *m_array;
-
-	public:
-		SharedVertexPredicate(RAS_ITexVert *vertex, RAS_IDisplayArray *array);
-		bool operator()(const SharedVertex& sharedVert) const;
-	};
-
 private:
 	std::string m_name;
 
 	LayersInfo m_layersInfo;
 
 	std::vector<RAS_Polygon> m_polygons;
+
+	unsigned int m_origVertexCount;
 
 	/* polygon sorting */
 	struct polygonSlot;
@@ -162,7 +143,6 @@ public:
 	// vertex and polygon acces
 	RAS_IDisplayArray *GetDisplayArray(unsigned int matid) const;
 	RAS_ITexVert *GetVertex(unsigned int matid, unsigned int index);
-	const float *GetVertexLocation(unsigned int orig_index);
 
 	int NumPolygons();
 	RAS_Polygon *GetPolygon(int num);
@@ -183,8 +163,6 @@ public:
 
 	// polygon sorting by Z for alpha
 	void SortPolygons(RAS_IDisplayArray *array, const MT_Transform &transform, unsigned int *indexmap);
-
-	SharedVertexMap m_sharedvertex_map;
 };
 
 #endif  // __RAS_MESHOBJECT_H__

@@ -59,7 +59,7 @@ struct BL_MeshMaterial
 
 RAS_MeshObject *BL_ConvertMesh(Mesh *mesh, Object *lightobj, KX_Scene *scene, BL_BlenderSceneConverter& converter, bool libloading);
 void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<BL_MeshMaterial>& mats,
-		const RAS_MeshObject::LayersInfo& layersInfo, RAS_MeshObject::SharedVertexMap& r_sharedVerts);
+		const RAS_MeshObject::LayersInfo& layersInfo);
 
 void BL_ConvertBlenderObjects(Main *maggie,
 							  KX_Scene *kxscene,

@@ -1784,8 +1784,6 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 		return false;
 	}
 
-	CM_FunctionDebug(gameobj->GetName());
-
 	RAS_Deformer *deformer = nullptr;
 
 	// Specified mesh object is the highest priority.
@@ -1803,12 +1801,14 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 
 	// Can't find the mesh object.
 	if (!meshobj) {
-		CM_Debug("no mesh");
 		return false;
 	}
 
+
 	RAS_IDisplayArrayList arrayList;
 	unsigned int numindices = 0;
+	unsigned int numvertices = 0;
+	// Compute indices count and maximum vertex count.
 	for (unsigned int i = 0, nummat = meshobj->NumMaterials(); i < nummat; ++i) {
 		RAS_MeshMaterial *meshmat = meshobj->GetMeshMaterial(i);
 		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
@@ -1818,13 +1818,12 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 
 		RAS_IDisplayArray *array = (deformer) ? deformer->GetDisplayArray(i) : meshmat->GetDisplayArray();
 		numindices += array->GetTriangleIndexCount();
+		numvertices = std::max(numvertices, array->GetMaxOrigIndex() + 1);
 		arrayList.push_back(array);
 	}
 
-	const unsigned int size = meshobj->m_sharedvertex_map.size();// TODO
-	CM_Debug(size);
-	m_vertexArray.resize(size * 3);
-	std::vector<int> vertRemap(size, -1);
+	m_vertexArray.resize(numvertices * 3);
+	std::vector<int> vertRemap(numvertices, -1);
 
 	// Current index written.
 	unsigned int curind = 0;
@@ -1871,7 +1870,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 		}
 	}
 
-#if 1
+#if 0
 	CM_Debug("# vert count " << m_vertexArray.size());
 	for (int i = 0; i < m_vertexArray.size(); i += 3) {
 		CM_Debug("v " << m_vertexArray[i] << " " << m_vertexArray[i + 1] << " " << m_vertexArray[i + 2]);

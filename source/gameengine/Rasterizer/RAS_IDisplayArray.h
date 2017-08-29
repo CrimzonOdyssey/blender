@@ -60,6 +60,9 @@ protected:
 	/// The indices of the original triangle independently of the primitive type.
 	std::vector<unsigned int> m_triangleIndices;
 
+	/// Maximum original vertex index.
+	unsigned int m_maxOrigIndex;
+
 public:
 	RAS_IDisplayArray(PrimitiveType type, const RAS_TexVertFormat& format);
 	virtual ~RAS_IDisplayArray();
@@ -125,6 +128,7 @@ public:
 
 	inline void AddVertexInfo(const RAS_TexVertInfo& info)
 	{
+		m_maxOrigIndex = std::max(m_maxOrigIndex, info.getOrigIndex());
 		m_vertexInfos.push_back(info);
 	}
 
@@ -147,6 +151,11 @@ public:
 	inline unsigned int GetTriangleIndexCount() const
 	{
 		return m_triangleIndices.size();
+	}
+
+	inline unsigned int GetMaxOrigIndex() const
+	{
+		return m_maxOrigIndex;
 	}
 
 	virtual RAS_ITexVert *CreateVertex(

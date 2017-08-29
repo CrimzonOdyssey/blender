@@ -199,8 +199,7 @@ void BL_ModifierDeformer::UpdateTransverts()
 		mats[i] = {array, mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
 	}
 
-	RAS_MeshObject::SharedVertexMap sharedMap;
-	BL_ConvertDerivedMeshToArray(m_dm, m_bmesh, mats, m_mesh->GetLayersInfo(), sharedMap);
+	BL_ConvertDerivedMeshToArray(m_dm, m_bmesh, mats, m_mesh->GetLayersInfo());
 
 	for (RAS_IDisplayArray *array : m_displayArrayList) {
 		array->SetModifiedFlag(RAS_IDisplayArray::SIZE_MODIFIED);

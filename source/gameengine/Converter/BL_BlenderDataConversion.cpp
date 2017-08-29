@@ -190,6 +190,35 @@ extern Material defmaterial;	/* material.c */
 
 #include "BLI_threads.h"
 
+// For construction to find shared vertices.
+struct BL_SharedVertex {
+	RAS_IDisplayArray *array;
+	unsigned int offset;
+};
+
+using BL_SharedVertexList = std::vector<BL_SharedVertex>;
+using BL_SharedVertexMap = std::vector<BL_SharedVertexList>;
+
+class BL_SharedVertexPredicate
+{
+private:
+	RAS_ITexVert *m_vertex;
+	RAS_IDisplayArray *m_array;
+
+public:
+	BL_SharedVertexPredicate(RAS_ITexVert *vertex, RAS_IDisplayArray *array)
+		:m_vertex(vertex),
+		m_array(array)
+	{
+	}
+
+	bool operator()(const BL_SharedVertex& sharedVert) const
+	{
+		RAS_IDisplayArray *otherArray = sharedVert.array;
+		return (m_array == otherArray) && (otherArray->GetVertexNoCache(sharedVert.offset)->closeTo(m_vertex));
+	}
+};
+
 static std::map<int, SCA_IInputDevice::SCA_EnumInputs> create_translate_table()
 {
 	std::map<int, SCA_IInputDevice::SCA_EnumInputs> m;
@@ -490,7 +519,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL
 		mats[i] = {meshmat->GetDisplayArray(), mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
 	}
 
-	BL_ConvertDerivedMeshToArray(dm, me, mats, layersInfo, meshobj->m_sharedvertex_map);
+	BL_ConvertDerivedMeshToArray(dm, me, mats, layersInfo);
 
 	// keep meshobj->m_sharedvertex_map for reinstance phys mesh.
 	// 2.49a and before it did: meshobj->m_sharedvertex_map.clear();
@@ -516,9 +545,9 @@ RAS_MeshObject* BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL
 }
 
 void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<BL_MeshMaterial>& mats,
-		const RAS_MeshObject::LayersInfo& layersInfo, RAS_MeshObject::SharedVertexMap& r_sharedVerts)
+		const RAS_MeshObject::LayersInfo& layersInfo)
 {
-	DM_ensure_looptri_data(dm);
+	DM_ensure_looptri(dm);
 
 	const MVert *mverts = dm->getVertArray(dm);
 	const int totverts = dm->getNumVerts(dm);
@@ -563,7 +592,8 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 		}
 	}
 
-	r_sharedVerts.resize(totverts);
+
+	BL_SharedVertexMap sharedMap(totverts);
 
 	/*std::vector<std::vector<unsigned int> > mpolyToMface(numpolys);
 	// Generate a list of all mfaces wrapped by a mpoly.
@@ -600,9 +630,9 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 
 			RAS_ITexVert *vertex = array->CreateVertex(pt, uvs, tan, rgba, no);
 
-			RAS_MeshObject::SharedVertexList& sharedList = r_sharedVerts[vertid];
-			RAS_MeshObject::SharedVertexList::iterator it = std::find_if(sharedList.begin(), sharedList.end(),
-					RAS_MeshObject::SharedVertexPredicate(vertex, array));
+			BL_SharedVertexList& sharedList = sharedMap[vertid];
+			BL_SharedVertexList::iterator it = std::find_if(sharedList.begin(), sharedList.end(),
+					BL_SharedVertexPredicate(vertex, array));
 
 			unsigned int offset;
 			if (it != sharedList.end()) {
@@ -636,18 +666,18 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 			else {
 				for (unsigned int j = ltstart; j < (ltstart + lttot); ++j) {
 					const MLoopTri& mlooptri = mlooptris[j];
-					array->AddPrimitiveIndex(mlooptri.tri[0]);
-					array->AddPrimitiveIndex(mlooptri.tri[1]);
-					array->AddPrimitiveIndex(mlooptri.tri[2]);
+					array->AddPrimitiveIndex(vertices[mloops[mlooptri.tri[0]].v]);
+					array->AddPrimitiveIndex(vertices[mloops[mlooptri.tri[1]].v]);
+					array->AddPrimitiveIndex(vertices[mloops[mlooptri.tri[2]].v]);
 				}
 			}
 		}
 
 		for (unsigned int j = ltstart; j < (ltstart + lttot); ++j) {
 			const MLoopTri& mlooptri = mlooptris[j];
-			array->AddTriangleIndex(mlooptri.tri[0]);
-			array->AddTriangleIndex(mlooptri.tri[1]);
-			array->AddTriangleIndex(mlooptri.tri[2]);
+			array->AddTriangleIndex(vertices[mloops[mlooptri.tri[0]].v]);
+			array->AddTriangleIndex(vertices[mloops[mlooptri.tri[1]].v]);
+			array->AddTriangleIndex(vertices[mloops[mlooptri.tri[2]].v]);
 		}
 
 			// TODO RAS_Polygon

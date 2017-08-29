@@ -122,6 +122,7 @@ public:
 		m_vertexInfos.clear();
 		m_primitiveIndices.clear();
 		m_triangleIndices.clear();
+		m_maxOrigIndex = 0;
 	}
 
 	virtual unsigned int GetVertexCount() const

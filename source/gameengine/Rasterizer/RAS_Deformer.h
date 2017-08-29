@@ -77,6 +77,7 @@ public:
 	{
 		return false;
 	}
+
 	// true when deformer produces varying vertex (shape or armature)
 	bool IsDynamic()
 	{
@@ -94,6 +95,8 @@ public:
 	RAS_IDisplayArray *GetDisplayArray(unsigned short index) const;
 
 protected:
+	unsigned int m_origVertexCount;
+
 	RAS_MeshObject *m_mesh;
 	bool m_bDynamic;
 
