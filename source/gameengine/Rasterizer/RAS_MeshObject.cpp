@@ -78,7 +78,7 @@ struct RAS_MeshObject::polygonSlot
 		MT_Vector3 center(0.0f, 0.0f, 0.0f);
 
 		for (unsigned short i = 0; i < nvert; ++i) {
-			m_index[i] = array->GetIndex(offset + i);
+			m_index[i] = array->GetPrimitiveIndex(offset + i);
 			center += array->GetVertex(m_index[i])->xyz();
 		}
 
@@ -207,104 +207,6 @@ RAS_MeshMaterial *RAS_MeshObject::AddMaterial(RAS_MaterialBucket *bucket, unsign
 	return meshmat;
 }
 
-void RAS_MeshObject::AddLine(RAS_MeshMaterial *meshmat, unsigned int v1, unsigned int v2)
-{
-	// create a new polygon
-	RAS_IDisplayArray *darray = meshmat->GetDisplayArray();
-	darray->AddIndex(v1);
-	darray->AddIndex(v2);
-}
-
-RAS_Polygon *RAS_MeshObject::AddPolygon(RAS_MeshMaterial *meshmat, int numverts, unsigned int indices[4],
-										bool visible, bool collider, bool twoside)
-{
-	// add it to the bucket, this also adds new display arrays
-	RAS_MaterialBucket *bucket = meshmat->GetBucket();
-
-	// create a new polygon
-	RAS_IDisplayArray *darray = meshmat->GetDisplayArray();
-	RAS_Polygon poly(bucket, darray, numverts);
-
-	poly.SetVisible(visible);
-	poly.SetCollider(collider);
-	poly.SetTwoside(twoside);
-
-	for (unsigned short i = 0; i < numverts; ++i) {
-		poly.SetVertexOffset(i, indices[i]);
-	}
-
-	if (visible && !bucket->IsWire()) {
-		// Add the first triangle.
-		darray->AddIndex(indices[0]);
-		darray->AddIndex(indices[1]);
-		darray->AddIndex(indices[2]);
-
-		if (numverts == 4) {
-			// Add the second triangle.
-			darray->AddIndex(indices[0]);
-			darray->AddIndex(indices[2]);
-			darray->AddIndex(indices[3]);
-		}
-	}
-
-	m_polygons.push_back(poly);
-	return &m_polygons.back();
-}
-
-unsigned int RAS_MeshObject::AddVertex(
-				RAS_MeshMaterial *meshmat,
-				const MT_Vector3& xyz,
-				const MT_Vector2 * const uvs,
-				const MT_Vector4& tangent,
-				const unsigned int *rgba,
-				const MT_Vector3& normal,
-				const bool flat,
-				const unsigned int origindex)
-{
-#if 0
-	RAS_IDisplayArray *darray = meshmat->GetDisplayArray();
-	RAS_ITexVert *vertex = darray->CreateVertex(xyz, uvs, tangent, rgba, normal);
-
-	{	/* Shared Vertex! */
-		/* find vertices shared between faces, with the restriction
-		 * that they exist in the same display array, and have the
-		 * same uv coordinate etc */
-		std::vector<SharedVertex>& sharedmap = m_sharedvertex_map[origindex];
-		std::vector<SharedVertex>::iterator it;
-
-		for (it = sharedmap.begin(); it != sharedmap.end(); it++) {
-			if (it->m_darray != darray)
-				continue;
-			if (!it->m_darray->GetVertexNoCache(it->m_offset)->closeTo(vertex))
-				continue;
-
-			// found one, add it and we're done
-			delete vertex;
-			return it->m_offset;
-		}
-	}
-
-	// no shared vertex found, add a new one
-	darray->AddVertex(vertex);
-	const RAS_TexVertInfo info(origindex, flat);
-	darray->AddVertexInfo(info);
-
-	int offset = darray->GetVertexCount() - 1;
-
-	{ 	// Shared Vertex!
-		SharedVertex shared;
-		shared.m_darray = darray;
-		shared.m_offset = offset;
-		m_sharedvertex_map[origindex].push_back(shared);
-	}
-
-	delete vertex;
-	return offset;
-#endif
-
-	return 0;
-}
-
 RAS_IDisplayArray *RAS_MeshObject::GetDisplayArray(unsigned int matid) const
 {
 	RAS_MeshMaterial *mmat = GetMeshMaterial(matid);
@@ -391,7 +293,7 @@ void RAS_MeshObject::EndConversion(RAS_BoundingBoxManager *boundingBoxManager)
 			CM_Warning("mesh \"" << m_name << "\" has no vertices for material \"" << materialname
 				<< "\". It introduces performance decrease for empty render.");
 		}
-		else if (array->GetIndexCount() == 0) {
+		else if (array->GetPrimitiveIndexCount() == 0) {
 			CM_Warning("mesh \"" << m_name << "\" has no polygons for material \"" << materialname
 				<< "\". It introduces performance decrease for empty render.");
 		}
@@ -434,7 +336,7 @@ void RAS_MeshObject::SortPolygons(RAS_IDisplayArray *array, const MT_Transform &
 	// require splitting polygons.
 
 	unsigned int nvert = 3;
-	unsigned int totpoly = array->GetIndexCount() / nvert;
+	unsigned int totpoly = array->GetPrimitiveIndexCount() / nvert;
 
 	if (totpoly <= 1)
 		return;
@@ -455,16 +357,4 @@ void RAS_MeshObject::SortPolygons(RAS_IDisplayArray *array, const MT_Transform &
 	// get indices from temporary array again
 	for (unsigned int j = 0; j < totpoly; j++)
 		poly_slots[j].set(indexmap, j * nvert, nvert);
-}
-
-
-bool RAS_MeshObject::HasColliderPolygon()
-{
-	for (const RAS_Polygon& poly : m_polygons) {
-		if (poly.IsCollider()) {
-			return true;
-		}
-	}
-
-	return false;
 }

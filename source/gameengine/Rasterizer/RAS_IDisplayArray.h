@@ -56,7 +56,9 @@ protected:
 	/// Cached vertex pointers. This list is constructed with the function UpdateCache.
 	std::vector<RAS_ITexVert *> m_vertexPtrs;
 	/// The indices used for rendering.
-	std::vector<unsigned int> m_indices;
+	std::vector<unsigned int> m_primitiveIndices;
+	/// The indices of the original triangle independently of the primitive type.
+	std::vector<unsigned int> m_triangleIndices;
 
 public:
 	RAS_IDisplayArray(PrimitiveType type, const RAS_TexVertFormat& format);
@@ -89,14 +91,14 @@ public:
 		return m_vertexPtrs[index];
 	}
 
-	inline unsigned int GetIndex(const unsigned int index) const
+	inline unsigned int GetPrimitiveIndex(const unsigned int index) const
 	{
-		return m_indices[index];
+		return m_primitiveIndices[index];
 	}
 
-	inline void SetIndex(const unsigned int index, const unsigned int value)
+	inline unsigned int GetTriangleIndex(const unsigned int index) const
 	{
-		m_indices[index] = value;
+		return m_triangleIndices[index];
 	}
 
 	inline const RAS_TexVertInfo& GetVertexInfo(const unsigned int index) const
@@ -111,9 +113,14 @@ public:
 
 	virtual unsigned int AddVertex(RAS_ITexVert *vert) = 0;
 
-	inline void AddIndex(const unsigned int index)
+	inline void AddPrimitiveIndex(const unsigned int index)
 	{
-		m_indices.push_back(index);
+		m_primitiveIndices.push_back(index);
+	}
+
+	inline void AddTriangleIndex(const unsigned int origIndex)
+	{
+		m_triangleIndices.push_back(origIndex);
 	}
 
 	inline void AddVertexInfo(const RAS_TexVertInfo& info)
@@ -125,16 +132,21 @@ public:
 
 	virtual const RAS_ITexVert *GetVertexPointer() const = 0;
 
-	inline const unsigned int *GetIndexPointer() const
+	inline const unsigned int *GetPrimitiveIndexPointer() const
 	{
-		return (unsigned int *)m_indices.data();
+		return (unsigned int *)m_primitiveIndices.data();
 	}
 
 	virtual unsigned int GetVertexCount() const = 0;
 
-	inline unsigned int GetIndexCount() const
+	inline unsigned int GetPrimitiveIndexCount() const
 	{
-		return m_indices.size();
+		return m_primitiveIndices.size();
+	}
+
+	inline unsigned int GetTriangleIndexCount() const
+	{
+		return m_triangleIndices.size();
 	}
 
 	virtual RAS_ITexVert *CreateVertex(

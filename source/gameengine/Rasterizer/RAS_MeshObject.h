@@ -158,18 +158,6 @@ public:
 
 	// mesh construction
 	RAS_MeshMaterial *AddMaterial(RAS_MaterialBucket *bucket, unsigned int index, const RAS_TexVertFormat& format);
-	void AddLine(RAS_MeshMaterial *meshmat, unsigned int v1, unsigned int v2);
-	virtual RAS_Polygon *AddPolygon(RAS_MeshMaterial *meshmat, int numverts, unsigned int indices[4],
-									bool visible, bool collider, bool twoside);
-	virtual unsigned int AddVertex(
-				RAS_MeshMaterial *meshmat,
-				const MT_Vector3& xyz,
-				const MT_Vector2 * const uvs,
-				const MT_Vector4& tangent,
-				const unsigned int *rgba,
-				const MT_Vector3& normal,
-				const bool flat,
-				const unsigned int origindex);
 
 	// vertex and polygon acces
 	RAS_IDisplayArray *GetDisplayArray(unsigned int matid) const;
@@ -195,8 +183,6 @@ public:
 
 	// polygon sorting by Z for alpha
 	void SortPolygons(RAS_IDisplayArray *array, const MT_Transform &transform, unsigned int *indexmap);
-
-	bool HasColliderPolygon();
 
 	SharedVertexMap m_sharedvertex_map;
 };

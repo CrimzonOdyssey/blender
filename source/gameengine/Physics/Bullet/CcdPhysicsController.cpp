@@ -1817,11 +1817,12 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 		}
 
 		RAS_IDisplayArray *array = (deformer) ? deformer->GetDisplayArray(i) : meshmat->GetDisplayArray();
-		numindices += array->GetIndexCount();
+		numindices += array->GetTriangleIndexCount();
 		arrayList.push_back(array);
 	}
 
 	const unsigned int size = meshobj->m_sharedvertex_map.size();// TODO
+	CM_Debug(size);
 	m_vertexArray.resize(size * 3);
 	std::vector<int> vertRemap(size, -1);
 
@@ -1855,8 +1856,8 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 
 		for (RAS_IDisplayArray *array : arrayList) {
 			// Convert triangles using remaped vertices index.
-			for (unsigned int j = 0, numind = array->GetIndexCount(); j < numind; ++j) {
-				const unsigned int index = array->GetIndex(j);
+			for (unsigned int j = 0, numind = array->GetTriangleIndexCount(); j < numind; ++j) {
+				const unsigned int index = array->GetTriangleIndex(j);
 
 				RAS_ITexVert *vert = array->GetVertex(index);
 				const float *uv = vert->getUV(0);

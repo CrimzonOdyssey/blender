@@ -120,7 +120,8 @@ public:
 		m_vertexes.clear();
 		m_vertexPtrs.clear();
 		m_vertexInfos.clear();
-		m_indices.clear();
+		m_primitiveIndices.clear();
+		m_triangleIndices.clear();
 	}
 
 	virtual unsigned int GetVertexCount() const

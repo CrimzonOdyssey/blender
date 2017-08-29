@@ -81,14 +81,14 @@ void VBO::UpdateVertexData()
 void VBO::UpdateSize()
 {
 	m_size = m_data->GetVertexCount();
-	m_indices = m_data->GetIndexCount();
+	m_indices = m_data->GetPrimitiveIndexCount();
 
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, m_vbo_id);
 	glBufferDataARB(GL_ARRAY_BUFFER_ARB, m_stride * m_size, m_data->GetVertexPointer(), GL_DYNAMIC_DRAW_ARB);
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_ibo);
-	glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_indices * sizeof(GLuint), m_data->GetIndexPointer(), GL_DYNAMIC_DRAW_ARB);
+	glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, m_indices * sizeof(GLuint), m_data->GetPrimitiveIndexPointer(), GL_DYNAMIC_DRAW_ARB);
 	glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 }
 

@@ -178,6 +178,7 @@ class	btIDebugDraw
 		btVector3 vy = normal.cross(axis);
 		btScalar step = stepDegrees * SIMD_RADS_PER_DEG;
 		int nSteps = (int)btFabs((maxAngle - minAngle) / step);
+		printf("%s %f %f %f %f\n", __func__, step, stepDegrees, minAngle, maxAngle);
 		if(!nSteps) nSteps = 1;
 		btVector3 prev = center + radiusA * vx * btCos(minAngle) + radiusB * vy * btSin(minAngle);
 		if(drawSect)

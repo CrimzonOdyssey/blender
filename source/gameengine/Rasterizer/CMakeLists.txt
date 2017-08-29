@@ -123,6 +123,7 @@ set(SRC
 	RAS_TextureRenderer.h
 	RAS_TextUser.h
 	RAS_TexVert.h
+	RAS_Triangle.h
 )
 
 data_to_c_simple(RAS_OpenGLFilters/RAS_Blur2DFilter.glsl SRC)

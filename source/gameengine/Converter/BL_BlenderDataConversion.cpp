@@ -518,17 +518,18 @@ RAS_MeshObject* BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL
 void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<BL_MeshMaterial>& mats,
 		const RAS_MeshObject::LayersInfo& layersInfo, RAS_MeshObject::SharedVertexMap& r_sharedVerts)
 {
-	DM_ensure_tessface(dm);
+	DM_ensure_looptri_data(dm);
 
 	const MVert *mverts = dm->getVertArray(dm);
 	const int totverts = dm->getNumVerts(dm);
-	const MFace *mfaces = dm->getTessFaceArray(dm);
+// 	const MFace *mfaces = dm->getTessFaceArray(dm);
 	const MPoly *mpolys = (MPoly *)dm->getPolyArray(dm);
+	const MLoopTri *mlooptris = (MLoopTri *)dm->getLoopTriArray(dm);
 	const MLoop *mloops = (MLoop *)dm->getLoopArray(dm);
 	const MEdge *medges = (MEdge *)dm->getEdgeArray(dm);
 	const unsigned int numpolys = dm->getNumPolys(dm);
-	const int totfaces = dm->getNumTessFaces(dm);
-	const int *mfaceToMpoly = (int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
+// 	const int totfaces = dm->getNumTessFaces(dm);
+// 	const int *mfaceToMpoly = (int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
 
 	if (CustomData_get_layer_index(&dm->loopData, CD_NORMAL) == -1) {
 		dm->calcLoopNormals(dm, (me->flag & ME_AUTOSMOOTH), me->smoothresh);
@@ -564,11 +565,11 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 
 	r_sharedVerts.resize(totverts);
 
-	std::vector<std::vector<unsigned int> > mpolyToMface(numpolys);
+	/*std::vector<std::vector<unsigned int> > mpolyToMface(numpolys);
 	// Generate a list of all mfaces wrapped by a mpoly.
 	for (unsigned int i = 0; i < totfaces; ++i) {
 		mpolyToMface[mfaceToMpoly[i]].push_back(i);
-	}
+	}*/
 
 	// Tracked vertices during a mpoly conversion, should never be used by the next mpoly.
 	std::vector<unsigned int> vertices(totverts, -1);
@@ -619,47 +620,39 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 			delete vertex;
 		}
 
-		// Convert to edges of material is rendering wire.
-		if (mat.wire && mat.visible) {
-			for (unsigned int j = lpstart; j < lpstart + totlp; ++j) {
-				const MLoop& mloop = mloops[j];
-				const MEdge& edge = medges[mloop.e];
-				array->AddIndex(vertices[edge.v1]);
-				array->AddIndex(vertices[edge.v2]);
+		const unsigned int ltstart = poly_to_tri_count(i, mpoly.loopstart);
+		const unsigned int lttot = ME_POLY_TRI_TOT(&mpoly);
+
+		if (mat.visible) {
+			// Convert to edges of material is rendering wire.
+			if (mat.wire) {
+				for (unsigned int j = lpstart; j < (lpstart + totlp); ++j) {
+					const MLoop& mloop = mloops[j];
+					const MEdge& edge = medges[mloop.e];
+					array->AddPrimitiveIndex(vertices[edge.v1]);
+					array->AddPrimitiveIndex(vertices[edge.v2]);
+				}
+			}
+			else {
+				for (unsigned int j = ltstart; j < (ltstart + lttot); ++j) {
+					const MLoopTri& mlooptri = mlooptris[j];
+					array->AddPrimitiveIndex(mlooptri.tri[0]);
+					array->AddPrimitiveIndex(mlooptri.tri[1]);
+					array->AddPrimitiveIndex(mlooptri.tri[2]);
+				}
 			}
 		}
 
-		// True if we can add indices to make rendered triangles.
-		const bool addIndice = !mat.wire && mat.visible;
-		// Convert all faces (triangles of quad).
-		for (unsigned int j : mpolyToMface[i]) {
-			const MFace& mface = mfaces[j];
-			const unsigned short nverts = (mface.v4) ? 4 : 3;
-
-			unsigned int indices[4];
-			indices[0] = vertices[mface.v1];
-			indices[1] = vertices[mface.v2];
-			indices[2] = vertices[mface.v3];
-			indices[3] = vertices[mface.v4];
-
-			if (addIndice) {
-				// Add the first triangle.
-				array->AddIndex(indices[0]);
-				array->AddIndex(indices[1]);
-				array->AddIndex(indices[2]);
-
-				if (nverts == 4) {
-					// Add the second triangle.
-					array->AddIndex(indices[0]);
-					array->AddIndex(indices[2]);
-					array->AddIndex(indices[3]);
-				}
-			}
+		for (unsigned int j = ltstart; j < (ltstart + lttot); ++j) {
+			const MLoopTri& mlooptri = mlooptris[j];
+			array->AddTriangleIndex(mlooptri.tri[0]);
+			array->AddTriangleIndex(mlooptri.tri[1]);
+			array->AddTriangleIndex(mlooptri.tri[2]);
+		}
 
 			// TODO RAS_Polygon
 
-// 			meshobj->AddPolygon(meshmat, nverts, indices, mat.visible, mat.collider, mat.twoside);
-		}
+// 			meshobj->AddPolygon(meshmat, nverts, indices, mat.visible, mat.collider, mat.twoside);*/
 	}
 }
 
