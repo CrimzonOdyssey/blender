@@ -59,6 +59,8 @@ extern "C" {
 #include "BKE_library.h"
 #include "BKE_global.h"
 
+#include "CM_Message.h"
+
 BL_Action::BL_Action(class KX_GameObject* gameobj)
 :
 	m_action(nullptr),
@@ -71,7 +73,6 @@ BL_Action::BL_Action(class KX_GameObject* gameobj)
 	m_localframe(0.f),
 	m_blendin(0.f),
 	m_blendframe(0.f),
-	m_blendstart(0.f),
 	m_speed(0.f),
 	m_priority(0),
 	m_playmode(ACT_MODE_PLAY),
@@ -80,7 +81,6 @@ BL_Action::BL_Action(class KX_GameObject* gameobj)
 	m_done(true),
 	m_appliedToObject(true),
 	m_requestIpo(false),
-	m_calc_localtime(true),
 	m_prevUpdate(-1.0f)
 {
 }
@@ -243,14 +243,12 @@ bool BL_Action::Play(const std::string& name,
 	}
 
 	// Now that we have an action, we have something we can play
-	m_starttime = KX_GetActiveEngine()->GetFrameTime() - kxscene->GetSuspendedDelta();
 	m_startframe = m_localframe = start;
 	m_endframe = end;
 	m_blendin = blendin;
 	m_playmode = play_mode;
 	m_blendmode = blend_mode;
 	m_blendframe = 0.f;
-	m_blendstart = 0.f;
 	m_speed = playback_speed;
 	m_layer_weight = layer_weight;
 	
@@ -303,14 +301,8 @@ const std::string BL_Action::GetName()
 
 void BL_Action::SetFrame(float frame)
 {
-	// Clamp the frame to the start and end frame
-	if (frame < std::min(m_startframe, m_endframe))
-		frame = std::min(m_startframe, m_endframe);
-	else if (frame > std::max(m_startframe, m_endframe))
-		frame = std::max(m_startframe, m_endframe);
-	
 	m_localframe = frame;
-	m_calc_localtime = false;
+	CLAMP(m_localframe, m_startframe, m_endframe);
 }
 
 void BL_Action::SetPlayMode(short play_mode)
@@ -318,38 +310,23 @@ void BL_Action::SetPlayMode(short play_mode)
 	m_playmode = play_mode;
 }
 
-void BL_Action::SetLocalTime(float curtime)
+void BL_Action::SetLocalTime(float deltatime)
 {
-	float dt = (curtime-m_starttime)*(float)KX_GetActiveEngine()->GetAnimFrameRate()*m_speed;
+	float dt = deltatime * (float)KX_GetActiveEngine()->GetAnimFrameRate() * m_speed;
 
-	if (m_endframe < m_startframe)
+	if (m_endframe < m_startframe) {
 		dt = -dt;
+	}
 
-	m_localframe = m_startframe + dt;
+	m_localframe += dt;
 }
 
-void BL_Action::ResetStartTime(float curtime)
+void BL_Action::IncrementBlending(float deltatime)
 {
-	float dt = (m_localframe > m_startframe) ? m_localframe - m_startframe : m_startframe - m_localframe;
-
-	m_starttime = curtime - dt / ((float)KX_GetActiveEngine()->GetAnimFrameRate()*m_speed);
-	SetLocalTime(curtime);
-}
-
-void BL_Action::IncrementBlending(float curtime)
-{
-	// Setup m_blendstart if we need to
-	if (m_blendstart == 0.f)
-		m_blendstart = curtime;
-	
 	// Bump the blend frame
-	m_blendframe = (curtime - m_blendstart)*(float)KX_GetActiveEngine()->GetAnimFrameRate();
-
-	// Clamp
-	if (m_blendframe>m_blendin)
-		m_blendframe = m_blendin;
+	m_blendframe += deltatime * (float)KX_GetActiveEngine()->GetAnimFrameRate();
+	CLAMP(m_blendframe, 0, m_blendin);
 }
-
 
 void BL_Action::BlendShape(Key* key, float srcweight, std::vector<float>& blendshape)
 {
@@ -366,7 +343,7 @@ void BL_Action::BlendShape(Key* key, float srcweight, std::vector<float>& blends
 	}
 }
 
-void BL_Action::Update(float curtime, bool applyToObject)
+void BL_Action::Update(float deltatime, float curtime, bool applyToObject)
 {
 	/* Don't bother if we're done with the animation and if the animation was already applied to the object.
 	 * of if the animation made a double update for the same time and that it was applied to the object.
@@ -376,16 +353,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 	}
 	m_prevUpdate = curtime;
 
-	KX_Scene *scene = m_obj->GetScene();
-	curtime -= (float)scene->GetSuspendedDelta();
-
-	if (m_calc_localtime)
-		SetLocalTime(curtime);
-	else
-	{
-		ResetStartTime(curtime);
-		m_calc_localtime = true;
-	}
+	SetLocalTime(deltatime);
 
 	// Handle wrap around
 	if (m_localframe < std::min(m_startframe, m_endframe) || m_localframe > std::max(m_startframe, m_endframe)) {
@@ -398,15 +366,12 @@ void BL_Action::Update(float curtime, bool applyToObject)
 			case ACT_MODE_LOOP:
 				// Put the time back to the beginning
 				m_localframe = m_startframe;
-				m_starttime = curtime;
 				break;
 			case ACT_MODE_PING_PONG:
 				// Swap the start and end frames
 				float temp = m_startframe;
 				m_startframe = m_endframe;
 				m_endframe = temp;
-
-				m_starttime = curtime;
 
 				break;
 		}
@@ -433,7 +398,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 		// Handle blending between armature actions
 		if (m_blendin && m_blendframe<m_blendin)
 		{
-			IncrementBlending(curtime);
+			IncrementBlending(deltatime);
 
 			// Calculate weight
 			float weight = 1.f - (m_blendframe/m_blendin);
@@ -467,7 +432,7 @@ void BL_Action::Update(float curtime, bool applyToObject)
 			// Handle blending between shape actions
 			if (m_blendin && m_blendframe < m_blendin)
 			{
-				IncrementBlending(curtime);
+				IncrementBlending(deltatime);
 
 				float weight = 1.f - (m_blendframe/m_blendin);
 

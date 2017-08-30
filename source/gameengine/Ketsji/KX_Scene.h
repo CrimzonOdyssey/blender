@@ -115,6 +115,7 @@ public:
 
 	struct AnimationPoolData
 	{
+		double deltatime;
 		double curtime;
 	};
 
@@ -262,6 +263,9 @@ protected:
 	bool m_suspend;
 	double m_suspendeddelta;
 
+	/// Time of previous animation update.
+	double m_previousAnimTime;
+
 	/**
 	 * Radius in Manhattan distance of the box for activity culling.
 	 */
@@ -364,7 +368,7 @@ public:
 	 */
 	void LogicBeginFrame(double curtime, double framestep);
 	void LogicUpdateFrame(double curtime);
-	void UpdateAnimations(double curtime);
+	void UpdateAnimations(double curtime, bool restricted);
 
 		void
 	LogicEndFrame(
