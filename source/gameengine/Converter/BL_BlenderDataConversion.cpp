@@ -666,18 +666,25 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 			else {
 				for (unsigned int j = ltstart; j < (ltstart + lttot); ++j) {
 					const MLoopTri& mlooptri = mlooptris[j];
-					array->AddPrimitiveIndex(vertices[mloops[mlooptri.tri[0]].v]);
-					array->AddPrimitiveIndex(vertices[mloops[mlooptri.tri[1]].v]);
-					array->AddPrimitiveIndex(vertices[mloops[mlooptri.tri[2]].v]);
+					for (unsigned short k = 0; k < 3; ++k) {
+						array->AddPrimitiveIndex(vertices[mloops[mlooptri.tri[k]].v]);
+					}
 				}
 			}
 		}
 
-		for (unsigned int j = ltstart; j < (ltstart + lttot); ++j) {
-			const MLoopTri& mlooptri = mlooptris[j];
-			array->AddTriangleIndex(vertices[mloops[mlooptri.tri[0]].v]);
-			array->AddTriangleIndex(vertices[mloops[mlooptri.tri[1]].v]);
-			array->AddTriangleIndex(vertices[mloops[mlooptri.tri[2]].v]);
+		for (unsigned int j = 0; j < lttot; j += 2) {
+			const unsigned int t[2] = {std::min(j, lttot) + ltstart, std::min(j + 1, lttot) + ltstart};
+			RAS_Polygon *poly = //...;
+			for (unsigned short k = 0; k < 2 && t[k] != t[1 - k]; ) // iterer sur le vrai nombre de triangle {
+				const unsigned int triOffset = array->GetTriangleIndexCount();
+				poly->//ajouter triangle
+	
+				const MLoopTri& mlooptri = mlooptris[j + ltstart];
+				for (unsigned short k = 0; k < 3; ++k) {
+					array->AddTriangleIndex(vertices[mloops[mlooptri.tri[k]].v]);
+				}
+			}
 		}
 
 			// TODO RAS_Polygon
