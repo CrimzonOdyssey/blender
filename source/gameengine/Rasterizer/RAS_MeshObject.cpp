@@ -166,6 +166,11 @@ RAS_Polygon *RAS_MeshObject::GetPolygon(int num)
 	return &m_polygons[num];
 }
 
+std::vector<RAS_Polygon> *RAS_MeshObject::GetPolygons()
+{
+	return &m_polygons;
+}
+
 std::string& RAS_MeshObject::GetName()
 {
 	return m_name;

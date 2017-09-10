@@ -1804,14 +1804,19 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 		return false;
 	}
 
-
+	// List of display array to convert.
 	RAS_IDisplayArrayList arrayList;
+	// Indices count.
 	unsigned int numindices = 0;
+	// Original (without split of normal or UV) vertex count.
 	unsigned int numvertices = 0;
+
 	// Compute indices count and maximum vertex count.
 	for (unsigned int i = 0, nummat = meshobj->NumMaterials(); i < nummat; ++i) {
 		RAS_MeshMaterial *meshmat = meshobj->GetMeshMaterial(i);
 		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
+
+		// If collisions are disabled: do nothing.
 		if (!mat->IsCollider()) {
 			continue;
 		}
@@ -1823,10 +1828,9 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 	}
 
 	m_vertexArray.resize(numvertices * 3);
+	/// Map from original vertex index to m_vertexArray vertex index.
 	std::vector<int> vertRemap(numvertices, -1);
 
-	// Current index written.
-	unsigned int curind = 0;
 	// Current vertex written.
 	unsigned int curvert = 0;
 	for (RAS_IDisplayArray *array : arrayList) {
@@ -1834,6 +1838,9 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 		for (unsigned int j = 0, numvert = array->GetVertexCount(); j < numvert; ++j) {
 			const RAS_TexVertInfo& info = array->GetVertexInfo(j);
 			const unsigned int origIndex = info.getOrigIndex();
+			/* Avoid double conversion of two unique vertices using the same base:
+			 * using the same original vertex and so the same position.
+			 */
 			if (vertRemap[origIndex] != -1) {
 				continue;
 			}
@@ -1844,6 +1851,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 			m_vertexArray[curvert * 3 + 1] = pos[1];
 			m_vertexArray[curvert * 3 + 2] = pos[2];
 
+			// Register the vertex index where the position was converted in m_vertexArray.
 			vertRemap[origIndex] = curvert++;
 		}
 	}
@@ -1853,15 +1861,20 @@ bool CcdShapeConstructionInfo::UpdateMesh(KX_GameObject *gameobj, RAS_MeshObject
 		m_triFaceArray.resize(numindices);
 		m_triFaceUVcoArray.resize(numindices);
 
+		// Current index written.
+		unsigned int curind = 0;
+
 		for (RAS_IDisplayArray *array : arrayList) {
 			// Convert triangles using remaped vertices index.
 			for (unsigned int j = 0, numind = array->GetTriangleIndexCount(); j < numind; ++j) {
 				const unsigned int index = array->GetTriangleIndex(j);
 
+				// Convert UV for raycast UV computation.
 				RAS_ITexVert *vert = array->GetVertex(index);
 				const float *uv = vert->getUV(0);
 				m_triFaceUVcoArray[curind] = {{uv[0], uv[1]}};
 
+				// Get vertex index from original index to m_vertexArray vertex index.
 				const RAS_TexVertInfo& info = array->GetVertexInfo(index);
 				const unsigned int origIndex = info.getOrigIndex();
 				m_triFaceArray[curind] = vertRemap[origIndex];

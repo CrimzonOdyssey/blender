@@ -51,6 +51,7 @@ class BL_BlenderSceneConverter;
 struct BL_MeshMaterial
 {
 	RAS_IDisplayArray *array;
+	RAS_MaterialBucket *bucket;
 	bool visible;
 	bool twoside;
 	bool collider;
@@ -59,7 +60,7 @@ struct BL_MeshMaterial
 
 RAS_MeshObject *BL_ConvertMesh(Mesh *mesh, Object *lightobj, KX_Scene *scene, BL_BlenderSceneConverter& converter, bool libloading);
 void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<BL_MeshMaterial>& mats,
-		const RAS_MeshObject::LayersInfo& layersInfo);
+		const RAS_MeshObject::LayersInfo& layersInfo, std::vector<RAS_Polygon> *polygons);
 
 void BL_ConvertBlenderObjects(Main *maggie,
 							  KX_Scene *kxscene,

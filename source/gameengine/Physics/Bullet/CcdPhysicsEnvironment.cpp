@@ -1778,20 +1778,7 @@ struct OcclusionBuffer {
 		transformM(c, p[2]);
 		clipDraw<3, WriteOCL>(p, face, btScalar(0.0f));
 	}
-	// add a quad (in model coordinate)
-	void appendOccluderM(const float *a,
-	                     const float *b,
-	                     const float *c,
-	                     const float *d,
-	                     const float face)
-	{
-		btVector4 p[4];
-		transformM(a, p[0]);
-		transformM(b, p[1]);
-		transformM(c, p[2]);
-		transformM(d, p[3]);
-		clipDraw<4, WriteOCL>(p, face, btScalar(0.0f));
-	}
+
 	// query occluder for a box (c=center, e=extend) in world coordinate
 	inline bool queryOccluderW(const btVector3 &c,
 	                           const btVector3 &e)
@@ -1876,27 +1863,15 @@ struct  DbvtCullingCallback : btDbvt::ICollide {
 				// walk through the meshes and for each add to buffer
 				for (int i = 0; i < gameobj->GetMeshCount(); i++) {
 					RAS_MeshObject *meshobj = gameobj->GetMesh(i);
-					const float *v1, *v2, *v3, *v4;
+					const float *v1, *v2, *v3;
 
 					int polycount = meshobj->NumPolygons();
 					for (int j = 0; j < polycount; j++) {
 						RAS_Polygon *poly = meshobj->GetPolygon(j);
-						switch (poly->VertexCount())
-						{
-							case 3:
-								v1 = poly->GetVertex(0)->getXYZ();
-								v2 = poly->GetVertex(1)->getXYZ();
-								v3 = poly->GetVertex(2)->getXYZ();
-								m_ocb->appendOccluderM(v1, v2, v3, ((poly->IsTwoside()) ? 0.f : face));
-								break;
-							case 4:
-								v1 = poly->GetVertex(0)->getXYZ();
-								v2 = poly->GetVertex(1)->getXYZ();
-								v3 = poly->GetVertex(2)->getXYZ();
-								v4 = poly->GetVertex(3)->getXYZ();
-								m_ocb->appendOccluderM(v1, v2, v3, v4, ((poly->IsTwoside()) ? 0.f : face));
-								break;
-						}
+						v1 = poly->GetVertex(0)->getXYZ();
+						v2 = poly->GetVertex(1)->getXYZ();
+						v3 = poly->GetVertex(2)->getXYZ();
+						m_ocb->appendOccluderM(v1, v2, v3, ((poly->IsTwoside()) ? 0.f : face));
 					}
 				}
 			}

@@ -134,14 +134,13 @@ void BL_MeshDeformer::RecalcNormals()
 	for (unsigned int i = 0, numpoly = m_mesh->NumPolygons(); i < numpoly; ++i) {
 		RAS_Polygon *poly = m_mesh->GetPolygon(i);
 		RAS_IDisplayArray *array = poly->GetDisplayArray();
-		const unsigned short numvert = poly->VertexCount();
 
-		const float *co[4];
-		unsigned int indices[4];
-		unsigned int origindices[4];
+		const float *co[3];
+		unsigned int indices[3];
+		unsigned int origindices[3];
 		bool flat = true;
 
-		for (unsigned int j = 0; j < numvert; ++j) {
+		for (unsigned int j = 0; j < 3; ++j) {
 			const unsigned int index = poly->GetVertexOffset(j);
 			const RAS_TexVertInfo& vinfo = array->GetVertexInfo(index);
 			const unsigned int origindex = vinfo.getOrigIndex();
@@ -156,23 +155,18 @@ void BL_MeshDeformer::RecalcNormals()
 		}
 
 		float pnorm[3];
-		if (numvert == 3) {
-			normal_tri_v3(pnorm, co[0], co[1], co[2]);
-		}
-		else {
-			normal_quad_v3(pnorm, co[0], co[1], co[2], co[3]);
-		}
+		normal_tri_v3(pnorm, co[0], co[1], co[2]);
 
 		if (flat) {
 			MT_Vector3 normal(pnorm);
-			for (unsigned int j = 0; j < numvert; ++j) {
+			for (unsigned int j = 0; j < 3; ++j) {
 				RAS_ITexVert *vert = array->GetVertex(indices[j]);
 
 				vert->SetNormal(normal);
 			}
 		}
 		else {
-			for (unsigned int j = 0; j < numvert; ++j) {
+			for (unsigned int j = 0; j < 3; ++j) {
 				add_v3_v3(m_transnors[origindices[j]], pnorm);
 			}
 		}

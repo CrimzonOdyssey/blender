@@ -146,6 +146,7 @@ public:
 
 	int NumPolygons();
 	RAS_Polygon *GetPolygon(int num);
+	std::vector<RAS_Polygon> *GetPolygons();
 
 	RAS_BoundingBox *GetBoundingBox() const;
 	// buckets

@@ -145,6 +145,10 @@ void BL_SkinDeformer::Relink(std::map<SCA_IObject *, SCA_IObject *>& map)
 
 bool BL_SkinDeformer::Apply(RAS_MeshMaterial *meshmat, RAS_IDisplayArray *array)
 {
+	if (!meshmat) {
+		return false;
+	}
+
 	RAS_IDisplayArray *origarray = meshmat->GetDisplayArray();
 
 	const short modifiedFlag = origarray->GetModifiedFlag();

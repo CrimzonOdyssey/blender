@@ -516,14 +516,11 @@ RAS_MeshObject* BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL
 		RAS_MeshMaterial *meshmat = meshobj->AddMaterial(bucket, i, vertformat);
 		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
 
-		mats[i] = {meshmat->GetDisplayArray(), mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
+		mats[i] = {meshmat->GetDisplayArray(), bucket, mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
 	}
 
-	BL_ConvertDerivedMeshToArray(dm, me, mats, layersInfo);
+	BL_ConvertDerivedMeshToArray(dm, me, mats, layersInfo, meshobj->GetPolygons());
 
-	// keep meshobj->m_sharedvertex_map for reinstance phys mesh.
-	// 2.49a and before it did: meshobj->m_sharedvertex_map.clear();
-	// but this didnt save much ram. - Campbell
 	meshobj->EndConversion(scene->GetBoundingBoxManager());
 
 	// Finalize materials.
@@ -545,20 +542,17 @@ RAS_MeshObject* BL_ConvertMesh(Mesh *me, Object *blenderobj, KX_Scene *scene, BL
 }
 
 void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<BL_MeshMaterial>& mats,
-		const RAS_MeshObject::LayersInfo& layersInfo)
+		const RAS_MeshObject::LayersInfo& layersInfo, std::vector<RAS_Polygon> *polygons)
 {
 	DM_ensure_looptri(dm);
 
 	const MVert *mverts = dm->getVertArray(dm);
 	const int totverts = dm->getNumVerts(dm);
-// 	const MFace *mfaces = dm->getTessFaceArray(dm);
 	const MPoly *mpolys = (MPoly *)dm->getPolyArray(dm);
 	const MLoopTri *mlooptris = (MLoopTri *)dm->getLoopTriArray(dm);
 	const MLoop *mloops = (MLoop *)dm->getLoopArray(dm);
 	const MEdge *medges = (MEdge *)dm->getEdgeArray(dm);
 	const unsigned int numpolys = dm->getNumPolys(dm);
-// 	const int totfaces = dm->getNumTessFaces(dm);
-// 	const int *mfaceToMpoly = (int *)dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
 
 	if (CustomData_get_layer_index(&dm->loopData, CD_NORMAL) == -1) {
 		dm->calcLoopNormals(dm, (me->flag & ME_AUTOSMOOTH), me->smoothresh);
@@ -594,12 +588,6 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 
 
 	BL_SharedVertexMap sharedMap(totverts);
-
-	/*std::vector<std::vector<unsigned int> > mpolyToMface(numpolys);
-	// Generate a list of all mfaces wrapped by a mpoly.
-	for (unsigned int i = 0; i < totfaces; ++i) {
-		mpolyToMface[mfaceToMpoly[i]].push_back(i);
-	}*/
 
 	// Tracked vertices during a mpoly conversion, should never be used by the next mpoly.
 	std::vector<unsigned int> vertices(totverts, -1);
@@ -673,17 +661,19 @@ void BL_ConvertDerivedMeshToArray(DerivedMesh *dm, Mesh *me, const std::vector<B
 			}
 		}
 
-		for (unsigned int j = 0; j < lttot; j += 2) {
-			const unsigned int t[2] = {std::min(j, lttot) + ltstart, std::min(j + 1, lttot) + ltstart};
-			RAS_Polygon *poly = //...;
-			for (unsigned short k = 0; k < 2 && t[k] != t[1 - k]; ) // iterer sur le vrai nombre de triangle {
-				const unsigned int triOffset = array->GetTriangleIndexCount();
-				poly->//ajouter triangle
-	
-				const MLoopTri& mlooptri = mlooptris[j + ltstart];
-				for (unsigned short k = 0; k < 3; ++k) {
-					array->AddTriangleIndex(vertices[mloops[mlooptri.tri[k]].v]);
-				}
+		std::vector<unsigned int> triIndices(lttot);
+		for (unsigned int j = 0; j < lttot; ++j) {
+			unsigned int offsets[3];
+			const MLoopTri& mlooptri = mlooptris[ltstart + j];
+			for (unsigned short l = 0; l < 3; ++l) {
+				const unsigned short offset = vertices[mloops[mlooptri.tri[l]].v];
+				// Add triangle index into display array.
+				array->AddTriangleIndex(offset);
+				offsets[l] = offset;
+			}
+
+			if (polygons) {
+				polygons->emplace_back(mat.bucket, array, offsets, mat.visible, mat.collider, mat.twoside);
 			}
 		}
 

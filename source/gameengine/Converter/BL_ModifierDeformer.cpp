@@ -196,10 +196,10 @@ void BL_ModifierDeformer::UpdateTransverts()
 		array->Clear();
 
 		RAS_IPolyMaterial *mat = meshmat->GetBucket()->GetPolyMaterial();
-		mats[i] = {array, mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
+		mats[i] = {array, meshmat->GetBucket(), mat->IsVisible(), mat->IsTwoSided(), mat->IsCollider(), mat->IsWire()};
 	}
 
-	BL_ConvertDerivedMeshToArray(m_dm, m_bmesh, mats, m_mesh->GetLayersInfo());
+	BL_ConvertDerivedMeshToArray(m_dm, m_bmesh, mats, m_mesh->GetLayersInfo(), nullptr);
 
 	for (RAS_IDisplayArray *array : m_displayArrayList) {
 		array->SetModifiedFlag(RAS_IDisplayArray::SIZE_MODIFIED);
